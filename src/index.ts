@@ -2,7 +2,7 @@
 
 /**
  * MariaDB Database Access MCP Server
- * 
+ *
  * This MCP server provides access to MariaDB databases.
  * It allows:
  * - Listing available databases
@@ -19,25 +19,29 @@ import {
   ListToolsRequestSchema,
   McpError,
 } from "@modelcontextprotocol/sdk/types.js";
-import mariadb from 'mariadb';
+import mariadb from "mariadb";
 
-import { createConnectionPool, executeQuery, getConfigFromEnv } from './connection.js';
-import { validateQuery } from './validators.js';
+import {
+  createConnectionPool,
+  executeQuery,
+  getConfigFromEnv,
+} from "./connection.js";
+import { validateQuery } from "./validators.js";
 
 // Create MariaDB connection pool
 let pool: mariadb.Pool;
 
 try {
   const config = getConfigFromEnv();
-  console.error('[Setup] MariaDB configuration:', { 
-    host: config.host, 
-    port: config.port, 
-    user: config.user, 
-    database: config.database || '(default not set)' 
+  console.error("[Setup] MariaDB configuration:", {
+    host: config.host,
+    port: config.port,
+    user: config.user,
+    database: config.database || "(default not set)",
   });
   pool = createConnectionPool(config);
 } catch (error) {
-  console.error('[Fatal] Failed to initialize MariaDB connection:', error);
+  console.error("[Fatal] Failed to initialize MariaDB connection:", error);
   process.exit(1);
 }
 
@@ -68,8 +72,8 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
         inputSchema: {
           type: "object",
           properties: {},
-          required: []
-        }
+          required: [],
+        },
       },
       {
         name: "list_tables",
@@ -79,11 +83,12 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           properties: {
             database: {
               type: "string",
-              description: "Database name (optional, uses default if not specified)"
-            }
+              description:
+                "Database name (optional, uses default if not specified)",
+            },
           },
-          required: []
-        }
+          required: [],
+        },
       },
       {
         name: "describe_table",
@@ -93,15 +98,16 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           properties: {
             database: {
               type: "string",
-              description: "Database name (optional, uses default if not specified)"
+              description:
+                "Database name (optional, uses default if not specified)",
             },
             table: {
               type: "string",
-              description: "Table name"
-            }
+              description: "Table name",
+            },
           },
-          required: ["table"]
-        }
+          required: ["table"],
+        },
       },
       {
         name: "execute_query",
@@ -111,17 +117,22 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           properties: {
             query: {
               type: "string",
-              description: "SQL query (only SELECT, SHOW, DESCRIBE, and EXPLAIN statements are allowed)"
+              description: `SQL query (only SELECT, ${
+                process.env.MARIADB_ALLOW_INSERT ? "INSERT," : ""
+              } ${process.env.MARIADB_ALLOW_UPDATE ? "UPDATE," : ""} ${
+                process.env.MARIADB_ALLOW_DELETE ? "DELETE," : ""
+              } SHOW, DESCRIBE, and EXPLAIN statements are allowed)`,
             },
             database: {
               type: "string",
-              description: "Database name (optional, uses default if not specified)"
-            }
+              description:
+                "Database name (optional, uses default if not specified)",
+            },
           },
-          required: ["query"]
-        }
-      }
-    ]
+          required: ["query"],
+        },
+      },
+    ],
   };
 });
 
@@ -132,107 +143,120 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   try {
     switch (request.params.name) {
       case "list_databases": {
-        console.error('[Tool] Executing list_databases');
-        
-        const { rows } = await executeQuery(
-          pool,
-          'SHOW DATABASES'
-        );
-        
+        console.error("[Tool] Executing list_databases");
+
+        const { rows } = await executeQuery(pool, "SHOW DATABASES");
+
         return {
-          content: [{
-            type: "text",
-            text: JSON.stringify(rows, null, 2)
-          }]
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(rows, null, 2),
+            },
+          ],
         };
       }
-      
+
       case "list_tables": {
-        console.error('[Tool] Executing list_tables');
-        
-        const database = request.params.arguments?.database as string | undefined;
-        
+        console.error("[Tool] Executing list_tables");
+
+        const database = request.params.arguments?.database as
+          | string
+          | undefined;
+
         const { rows } = await executeQuery(
           pool,
-          'SHOW FULL TABLES',
+          "SHOW FULL TABLES",
           [],
           database
         );
-        
+
         return {
-          content: [{
-            type: "text",
-            text: JSON.stringify(rows, null, 2)
-          }]
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(rows, null, 2),
+            },
+          ],
         };
       }
-      
+
       case "describe_table": {
-        console.error('[Tool] Executing describe_table');
-        
-        const database = request.params.arguments?.database as string | undefined;
+        console.error("[Tool] Executing describe_table");
+
+        const database = request.params.arguments?.database as
+          | string
+          | undefined;
         const table = request.params.arguments?.table as string;
-        
+
         if (!table) {
           throw new McpError(ErrorCode.InvalidParams, "Table name is required");
         }
-        
+
         const { rows } = await executeQuery(
           pool,
           `DESCRIBE \`${table}\``,
           [],
           database
         );
-        
+
         return {
-          content: [{
-            type: "text",
-            text: JSON.stringify(rows, null, 2)
-          }]
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(rows, null, 2),
+            },
+          ],
         };
       }
-      
+
       case "execute_query": {
-        console.error('[Tool] Executing execute_query');
-        
+        console.error("[Tool] Executing execute_query");
+
         const query = request.params.arguments?.query as string;
-        const database = request.params.arguments?.database as string | undefined;
-        
+        const database = request.params.arguments?.database as
+          | string
+          | undefined;
+
         if (!query) {
           throw new McpError(ErrorCode.InvalidParams, "Query is required");
         }
-        
+
         // Validate that the query is read-only
         validateQuery(query);
-        
-        const { rows } = await executeQuery(
-          pool,
-          query,
-          [],
-          database
-        );
-        
+
+        const { rows } = await executeQuery(pool, query, [], database);
+
         return {
-          content: [{
-            type: "text",
-            text: JSON.stringify(rows, null, 2)
-          }]
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(rows, null, 2),
+            },
+          ],
         };
       }
-      
+
       default:
-        throw new McpError(ErrorCode.MethodNotFound, `Unknown tool: ${request.params.name}`);
+        throw new McpError(
+          ErrorCode.MethodNotFound,
+          `Unknown tool: ${request.params.name}`
+        );
     }
   } catch (error) {
-    console.error('[Error] Tool execution failed:', error);
-    
+    console.error("[Error] Tool execution failed:", error);
+
     // Format error message for client
     return {
-      content: [{
-        type: "text",
-        text: `Error: ${error instanceof Error ? error.message : String(error)}`
-      }],
-      isError: true
+      content: [
+        {
+          type: "text",
+          text: `Error: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        },
+      ],
+      isError: true,
     };
   }
 });
@@ -241,27 +265,27 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
  * Start the server using stdio transport
  */
 async function main() {
-  console.error('[Setup] Starting MySQL MCP server');
-  
+  console.error("[Setup] Starting MySQL MCP server");
+
   try {
     const transport = new StdioServerTransport();
     await server.connect(transport);
-    console.error('[Setup] MySQL MCP server running on stdio');
+    console.error("[Setup] MySQL MCP server running on stdio");
   } catch (error) {
-    console.error('[Fatal] Failed to start server:', error);
+    console.error("[Fatal] Failed to start server:", error);
     process.exit(1);
   }
 }
 
 // Handle process termination
-process.on('SIGINT', async () => {
-  console.error('[Shutdown] Closing MySQL connection pool');
+process.on("SIGINT", async () => {
+  console.error("[Shutdown] Closing MySQL connection pool");
   await pool.end();
   process.exit(0);
 });
 
 // Start the server
 main().catch((error) => {
-  console.error('[Fatal] Unhandled error:', error);
+  console.error("[Fatal] Unhandled error:", error);
   process.exit(1);
 });
