@@ -1,0 +1,17 @@
+{
+  "mcpServers": {
+    "mysql": {
+      "command": "node",
+      "args": ["/absolute/path/to/mariadb-mcp-server/dist/index.js"],
+      "env": {
+        "MARIADB_HOST": "localhost",
+        "MARIADB_PORT": "3306",
+        "MARIADB_USER": "your-mariadb-user",
+        "MARIADB_PASSWORD": "your-mysql-password",
+        "MARIADB_DATABASE": "your-default-database"
+      },
+      "disabled": false,
+      "autoApprove": []
+    }
+  }
+}
