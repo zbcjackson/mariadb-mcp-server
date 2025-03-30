@@ -68,7 +68,9 @@ export async function executeQuery(
     ]);
 
     // Apply row limit if result is an array
-    console.error(`[Query] rows: ${ JSON.stringify(rows)} limit: ${DEFAULT_ROW_LIMIT}`);
+    console.error(
+      `[Query] rows: ${JSON.stringify(rows)} limit: ${DEFAULT_ROW_LIMIT}`
+    );
     const limitedRows =
       Array.isArray(rows) && rows.length > DEFAULT_ROW_LIMIT
         ? rows.slice(0, DEFAULT_ROW_LIMIT)
@@ -81,6 +83,9 @@ export async function executeQuery(
 
     return { rows: limitedRows, fields };
   } catch (error) {
+    if (connection) {
+      connection.release();
+    }
     console.error("[Error] Query execution failed:", error);
     throw error;
   } finally {
