@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * Test script for MySQL MCP server tools
+ * Test script for MariaDB MCP server tools
  * 
  * This script tests each of the MCP tools:
  * 1. list_databases
@@ -13,11 +13,14 @@
  *   node test-tools.js
  * 
  * Environment variables:
- *   MYSQL_HOST - MySQL host (default: localhost)
- *   MYSQL_PORT - MySQL port (default: 3306)
- *   MYSQL_USER - MySQL username
- *   MYSQL_PASSWORD - MySQL password
- *   MYSQL_DATABASE - MySQL database (default: mcp_test_db)
+ *   MARIADB_HOST - host (default: localhost)
+ *   MARIADB_PORT - port (default: 3306)
+ *   MARIADB_USER - username
+ *   MARIADB_PASSWORD - password
+ *   MARIADB_DATABASE - database
+ *   MARIADB_ALLOW_INSERT - false
+ *   MARIADB_ALLOW_UPDATE - false
+ *   MARIADB_ALLOW_DELETE - false
  */
 
 import { spawn } from 'child_process';
@@ -34,22 +37,25 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 // Path to the built MCP server
-const SERVER_PATH = resolve(__dirname, 'build/index.js');
+const SERVER_PATH = resolve(__dirname, 'dist/index.js');
 
 // Configuration from environment variables
 const config = {
-  host: process.env.MYSQL_HOST || 'localhost',
-  port: process.env.MYSQL_PORT || '3306',
-  user: process.env.MYSQL_USER,
-  password: process.env.MYSQL_PASSWORD,
-  database: process.env.MYSQL_DATABASE || 'mcp_test_db',
+  host: process.env.MARIADB_HOST || 'localhost',
+  port: process.env.MARIADB_PORT || '3306',
+  user: process.env.MARIADB_USER,
+  password: process.env.MARIADB_PASSWORD,
+  database: process.env.MARIADB_DATABASE || 'teste_db',
+  allowInsert: process.env.MARIADB_ALLOW_INSERT !== 'false',
+  allowUpdate: process.env.MARIADB_ALLOW_UPDATE !== 'false',
+  allowDelete: process.env.MARIADB_ALLOW_DELETE !== 'false',
 };
 
 // Check required environment variables
 if (!config.user || !config.password) {
-  console.error('Error: MYSQL_USER and MYSQL_PASSWORD environment variables are required');
+  console.error('Error: MARIADB_USER and MARIADB_PASSWORD environment variables are required');
   console.error('Example usage:');
-  console.error('  MYSQL_USER=root MYSQL_PASSWORD=password node test-tools.js');
+  console.error('  MARIADB_USER=root MARIADB_PASSWORD=password node test-tools.js');
   process.exit(1);
 }
 
@@ -60,11 +66,14 @@ let messageId = 1;
  * Main function
  */
 async function main() {
-  console.log('MySQL MCP Server Tool Tests');
+  console.log('MariaDB MCP Server Tool Tests');
   console.log('==========================');
   console.log(`Host: ${config.host}:${config.port}`);
   console.log(`User: ${config.user}`);
   console.log(`Database: ${config.database}`);
+  console.log(`Allow Insert: ${config.allowInsert}`);
+  console.log(`Allow Update: ${config.allowUpdate}`);
+  console.log(`Allow Delete: ${config.allowDelete}`);
   console.log();
 
   // Start the MCP server
@@ -116,11 +125,14 @@ async function main() {
 function startServer() {
   const env = {
     ...process.env,
-    MYSQL_HOST: config.host,
-    MYSQL_PORT: config.port,
-    MYSQL_USER: config.user,
-    MYSQL_PASSWORD: config.password,
-    MYSQL_DATABASE: config.database,
+    MARIADB_HOST: config.host,
+    MARIADB_PORT: config.port,
+    MARIADB_USER: config.user,
+    MARIADB_PASSWORD: config.password,
+    MARIADB_DATABASE: config.database,
+    MARIADB_ALLOW_INSERT: String(config.allowInsert),
+    MARIADB_ALLOW_UPDATE: String(config.allowUpdate),
+    MARIADB_ALLOW_DELETE: String(config.allowDelete),
   };
   
   const server = spawn('node', [SERVER_PATH], { env });

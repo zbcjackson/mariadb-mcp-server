@@ -1,14 +1,17 @@
 /**
- * Type definitions for MySQL MCP server
+ * Type definitions for MariaDB MCP server
  */
 
-// MySQL connection configuration
-export interface MySQLConfig {
+// MariaDB connection configuration
+export interface MariaDBConfig {
   host: string;
   port: number;
   user: string;
   password: string;
   database?: string;
+  allow_insert: boolean;
+  allow_update: boolean;
+  allow_delete: boolean;
 }
 
 // Database information

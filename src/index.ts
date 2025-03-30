@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 
 /**
- * MySQL Database Access MCP Server
+ * MariaDB Database Access MCP Server
  * 
- * This MCP server provides read-only access to MySQL databases.
+ * This MCP server provides access to MariaDB databases.
  * It allows:
  * - Listing available databases
  * - Listing tables in a database
@@ -19,17 +19,17 @@ import {
   ListToolsRequestSchema,
   McpError,
 } from "@modelcontextprotocol/sdk/types.js";
-import mysql from 'mysql2/promise';
+import mariadb from 'mariadb';
 
 import { createConnectionPool, executeQuery, getConfigFromEnv } from './connection.js';
 import { validateQuery } from './validators.js';
 
-// Create MySQL connection pool
-let pool: mysql.Pool;
+// Create MariaDB connection pool
+let pool: mariadb.Pool;
 
 try {
   const config = getConfigFromEnv();
-  console.error('[Setup] MySQL configuration:', { 
+  console.error('[Setup] MariaDB configuration:', { 
     host: config.host, 
     port: config.port, 
     user: config.user, 
@@ -37,17 +37,17 @@ try {
   });
   pool = createConnectionPool(config);
 } catch (error) {
-  console.error('[Fatal] Failed to initialize MySQL connection:', error);
+  console.error('[Fatal] Failed to initialize MariaDB connection:', error);
   process.exit(1);
 }
 
 /**
- * Create an MCP server with tools for MySQL database access
+ * Create an MCP server with tools for MariaDB database access
  */
 const server = new Server(
   {
-    name: "mysql-mcp-server",
-    version: "0.1.0",
+    name: "mariadb-mcp-server",
+    version: "0.0.1",
   },
   {
     capabilities: {
@@ -57,14 +57,14 @@ const server = new Server(
 );
 
 /**
- * Handler that lists available tools for MySQL database access
+ * Handler that lists available tools for MariaDB database access
  */
 server.setRequestHandler(ListToolsRequestSchema, async () => {
   return {
     tools: [
       {
         name: "list_databases",
-        description: "List all accessible databases on the MySQL server",
+        description: "List all accessible databases on the MariaDB server",
         inputSchema: {
           type: "object",
           properties: {},
@@ -105,7 +105,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       },
       {
         name: "execute_query",
-        description: "Execute a read-only SQL query",
+        description: "Execute a SQL query",
         inputSchema: {
           type: "object",
           properties: {
