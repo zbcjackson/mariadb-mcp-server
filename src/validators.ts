@@ -103,5 +103,5 @@ export function validateQuery(query: string): void {
     );
   }
 
-  console.error("[Validator] Query invalidated");
+  console.error("[Validator] Query validated");
 }

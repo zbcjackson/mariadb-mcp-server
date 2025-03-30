@@ -66,7 +66,8 @@ export async function executeQuery(
         setTimeout(() => reject(new Error("Query timeout")), DEFAULT_TIMEOUT);
       }),
     ]);
-
+    const nnRows = connection.query(sql, params);
+    console.error('NNROWS:', JSON.stringify(nnRows) );
     // Apply row limit if result is an array
     console.error(
       `[Query] rows: ${JSON.stringify(rows)} limit: ${DEFAULT_ROW_LIMIT}`

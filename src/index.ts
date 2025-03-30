@@ -137,7 +137,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
 });
 
 /**
- * Handler for MySQL database access tools
+ * Handler for MariaDB database access tools
  */
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
   try {
@@ -265,12 +265,12 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
  * Start the server using stdio transport
  */
 async function main() {
-  console.error("[Setup] Starting MySQL MCP server");
+  console.error("[Setup] Starting MariaDB MCP server");
 
   try {
     const transport = new StdioServerTransport();
     await server.connect(transport);
-    console.error("[Setup] MySQL MCP server running on stdio");
+    console.error("[Setup] MariaDB MCP server running on stdio");
   } catch (error) {
     console.error("[Fatal] Failed to start server:", error);
     process.exit(1);
@@ -279,7 +279,7 @@ async function main() {
 
 // Handle process termination
 process.on("SIGINT", async () => {
-  console.error("[Shutdown] Closing MySQL connection pool");
+  console.error("[Shutdown] Closing MariaDB connection pool");
   await pool.end();
   process.exit(0);
 });
