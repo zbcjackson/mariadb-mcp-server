@@ -60,17 +60,19 @@ export async function executeQuery(
       throw new Error("Query not allowed");
     }
     // Execute query with timeout
-    const [rows, fields] = await Promise.race([
-      connection.query(sql, params),
-      new Promise<never>((_, reject) => {
-        setTimeout(() => reject(new Error("Query timeout")), DEFAULT_TIMEOUT);
-      }),
-    ]);
-    const nnRows = connection.query(sql, params);
-    console.error('NNROWS:', JSON.stringify(nnRows) );
+    const [rows, fields] = await connection.query({
+      metaAsArray: true,
+      namedPlaceholders: true,
+      sql,
+      ...params,
+      timeout: DEFAULT_TIMEOUT,
+    });
+
     // Apply row limit if result is an array
     console.error(
-      `[Query] rows: ${JSON.stringify(rows)} limit: ${DEFAULT_ROW_LIMIT}`
+      `[Query] rows: ${Array.isArray(rows)} = ${
+        rows.length
+      } limit: ${DEFAULT_ROW_LIMIT}`
     );
     const limitedRows =
       Array.isArray(rows) && rows.length > DEFAULT_ROW_LIMIT
