@@ -89,6 +89,7 @@ async function main() {
     const databases = await callTool(server, 'list_databases', {});
     console.log('Result:', JSON.stringify(databases, null, 2));
     
+    const table = 'users';
     // Test list_tables
     console.log('\n2. Testing list_tables tool...');
     const tables = await callTool(server, 'list_tables', { database: config.database });
@@ -98,7 +99,7 @@ async function main() {
     console.log('\n3. Testing describe_table tool...');
     const tableSchema = await callTool(server, 'describe_table', { 
       database: config.database,
-      table: 'users'
+      table
     });
     console.log('Result:', JSON.stringify(tableSchema, null, 2));
     
@@ -106,7 +107,7 @@ async function main() {
     console.log('\n4. Testing execute_query tool...');
     const queryResult = await callTool(server, 'execute_query', {
       database: config.database,
-      query: 'SELECT * FROM users LIMIT 3'
+      query: `SELECT * FROM ${table} LIMIT 3`
     });
     console.log('Result:', JSON.stringify(queryResult, null, 2));
     

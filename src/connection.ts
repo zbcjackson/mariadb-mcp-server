@@ -76,13 +76,14 @@ export async function executeQuery(
 
     // Log result summary
     console.error(
-      `[Query] Success: ${Array.isArray(rows) ? rows.length : 1} rows returned`
+      `[Query] Success: ${Array.isArray(rows) ? rows.length : 1} rows returned with ${ JSON.stringify(params) }`
     );
 
     return { rows: limitedRows, fields };
   } catch (error) {
     if (connection) {
       connection.release();
+      console.error("[Query] Connection released with error");
     }
     console.error("[Error] Query execution failed:", error);
     throw error;
@@ -90,6 +91,7 @@ export async function executeQuery(
     // Release connection back to pool
     if (connection) {
       connection.release();
+      console.error("[Query] Connection released");
     }
   }
 }
