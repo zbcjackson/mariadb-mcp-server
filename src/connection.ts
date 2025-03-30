@@ -69,11 +69,6 @@ export async function executeQuery(
     });
 
     // Apply row limit if result is an array
-    console.error(
-      `[Query] rows: ${Array.isArray(rows)} = ${
-        rows.length
-      } limit: ${DEFAULT_ROW_LIMIT}`
-    );
     const limitedRows =
       Array.isArray(rows) && rows.length > DEFAULT_ROW_LIMIT
         ? rows.slice(0, DEFAULT_ROW_LIMIT)
