@@ -19,32 +19,12 @@ import {
   ListToolsRequestSchema,
   McpError,
 } from "@modelcontextprotocol/sdk/types.js";
-import mariadb from "mariadb";
 
 import {
   createConnectionPool,
   executeQuery,
-  getConfigFromEnv,
+  endConnection,
 } from "./connection.js";
-
-let pool: mariadb.Pool
-
-try {
-  const config = getConfigFromEnv();
-  console.error("[Setup] MariaDB configuration:", {
-    host: config.host,
-    port: config.port,
-    user: config.user,
-    database: config.database || "(default not set)",
-  });
-  pool = createConnectionPool(config);
-  console.error("Total connections: ", pool.totalConnections());
-  console.error("Active connections: ", pool.activeConnections());
-  console.error("Idle connections: ", pool.idleConnections());  
-} catch (error) {
-  console.error("[Fatal] Failed to initialize MariaDB connection:", error);
-  process.exit(1);
-}
 
 /**
  * Create an MCP server with tools for MariaDB database access
@@ -142,11 +122,18 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
  */
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
   try {
+    createConnectionPool();
+  } catch (error) {
+    console.error("[Fatal] Failed to initialize MariaDB connection:", error);
+    process.exit(1);
+  }
+
+  try {
     switch (request.params.name) {
       case "list_databases": {
         console.error("[Tool] Executing list_databases");
 
-        const { rows } = await executeQuery(pool, "SHOW DATABASES");
+        const { rows } = await executeQuery("SHOW DATABASES");
 
         return {
           content: [
@@ -165,12 +152,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           | string
           | undefined;
 
-        const { rows } = await executeQuery(
-          pool,
-          "SHOW FULL TABLES",
-          [],
-          database
-        );
+        const { rows } = await executeQuery("SHOW FULL TABLES", [], database);
 
         return {
           content: [
@@ -195,7 +177,6 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         }
 
         const { rows } = await executeQuery(
-          pool,
           `DESCRIBE \`${table}\``,
           [],
           database
@@ -223,7 +204,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           throw new McpError(ErrorCode.InvalidParams, "Query is required");
         }
 
-        const { rows } = await executeQuery(pool, query, [], database);
+        const { rows } = await executeQuery(query, [], database);
 
         return {
           content: [
@@ -278,7 +259,7 @@ async function main() {
 // Handle process termination
 process.on("SIGINT", async () => {
   console.error("[Shutdown] Closing MariaDB connection pool");
-  await pool.end();
+  await endConnection();
   process.exit(0);
 });
 

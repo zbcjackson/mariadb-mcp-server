@@ -12,14 +12,21 @@ const DEFAULT_TIMEOUT = 10000;
 // Default row limit for query results
 const DEFAULT_ROW_LIMIT = 1000;
 
+let pool: mariadb.Pool | null = null;
+let connection: mariadb.PoolConnection | null = null;
+
 /**
  * Create a MariaDB connection pool
  */
-export function createConnectionPool(config: MariaDBConfig): mariadb.Pool {
+export function createConnectionPool(): mariadb.Pool {
   console.error("[Setup] Creating MariaDB connection pool");
-
+  const config = getConfigFromEnv();
+  if (pool) {
+    console.error("[Setup] Connection pool already exists");
+    return pool;
+  }
   try {
-    return mariadb.createPool({
+    pool = mariadb.createPool({
       host: config.host,
       port: config.port,
       user: config.user,
@@ -32,24 +39,31 @@ export function createConnectionPool(config: MariaDBConfig): mariadb.Pool {
     console.error("[Error] Failed to create connection pool:", error);
     throw error;
   }
+  return pool;
 }
 
 /**
  * Execute a query with error handling and logging
  */
 export async function executeQuery(
-  pool: mariadb.Pool,
   sql: string,
   params: any[] = [],
   database?: string
 ): Promise<{ rows: any; fields: mariadb.FieldInfo[] }> {
   console.error(`[Query] Executing: ${sql}`);
-
-  let connection: mariadb.PoolConnection | null = null;
-
+  // Create connection pool if not already created
+  if (!pool) {
+    console.error("[Setup] Connection pool not found, creating a new one");
+    pool = createConnectionPool();
+  }
   try {
     // Get connection from pool
-    connection = await pool.getConnection();
+    if (connection) {
+      console.error("[Query] Reusing existing connection");
+    } else {
+      console.error("[Query] Creating new connection");
+      connection = await pool.getConnection();
+    }
 
     // Use specific database if provided
     if (database) {
@@ -76,7 +90,9 @@ export async function executeQuery(
 
     // Log result summary
     console.error(
-      `[Query] Success: ${Array.isArray(rows) ? rows.length : 1} rows returned with ${ JSON.stringify(params) }`
+      `[Query] Success: ${
+        Array.isArray(rows) ? rows.length : 1
+      } rows returned with ${JSON.stringify(params)}`
     );
 
     return { rows: limitedRows, fields };
@@ -116,6 +132,13 @@ export function getConfigFromEnv(): MariaDBConfig {
 
   const port = portStr ? parseInt(portStr, 10) : 3306;
 
+  console.error("[Setup] MariaDB configuration:", {
+    host: host,
+    port: port,
+    user: user,
+    database: database || "(default not set)",
+  });
+
   return {
     host,
     port,
@@ -126,4 +149,10 @@ export function getConfigFromEnv(): MariaDBConfig {
     allow_update,
     allow_delete,
   };
+}
+
+export function endConnection() {
+  if (pool) {
+    return pool.end();
+  }
 }
