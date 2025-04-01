@@ -25,7 +25,7 @@ export function createConnectionPool(config: MariaDBConfig): mariadb.Pool {
       user: config.user,
       password: config.password,
       database: config.database,
-      connectionLimit: 10,
+      connectionLimit: 2,
       connectTimeout: DEFAULT_TIMEOUT,
     });
   } catch (error) {

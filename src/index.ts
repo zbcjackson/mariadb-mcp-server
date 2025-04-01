@@ -26,10 +26,8 @@ import {
   executeQuery,
   getConfigFromEnv,
 } from "./connection.js";
-import { validateQuery } from "./validators.js";
 
-// Create MariaDB connection pool
-let pool: mariadb.Pool;
+let pool: mariadb.Pool
 
 try {
   const config = getConfigFromEnv();
@@ -40,6 +38,9 @@ try {
     database: config.database || "(default not set)",
   });
   pool = createConnectionPool(config);
+  console.error("Total connections: ", pool.totalConnections());
+  console.error("Active connections: ", pool.activeConnections());
+  console.error("Idle connections: ", pool.idleConnections());  
 } catch (error) {
   console.error("[Fatal] Failed to initialize MariaDB connection:", error);
   process.exit(1);
@@ -221,9 +222,6 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         if (!query) {
           throw new McpError(ErrorCode.InvalidParams, "Query is required");
         }
-
-        // Validate that the query is read-only
-        validateQuery(query);
 
         const { rows } = await executeQuery(pool, query, [], database);
 
