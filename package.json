@@ -38,7 +38,7 @@
     "mariadb": "^3.4.0"
   },
   "devDependencies": {
-    "@types/node": "^22.13.14",
+    "@types/node": "^22.13.16",
     "dotenv": "^16.4.7",
     "typescript": "^5.8.2"
   }

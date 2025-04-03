@@ -49,7 +49,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
     tools: [
       {
         name: "list_databases",
-        description: "List all accessible databases on the server",
+        description: "List all accessible databases on the MariaDB server",
         inputSchema: {
           type: "object",
           properties: {},
@@ -132,9 +132,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     switch (request.params.name) {
       case "list_databases": {
         console.error("[Tool] Executing list_databases");
-
         const { rows } = await executeQuery("SHOW DATABASES");
-
         return {
           content: [
             {
