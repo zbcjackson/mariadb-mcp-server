@@ -10,32 +10,53 @@ const DEFAULT_TIMEOUT = process.env.MARIADB_TIMEOUT_MS
 const DEFAULT_ROW_LIMIT = process.env.MARIADB_ROW_LIMIT
 	? Number.parseInt(process.env.MARIADB_ROW_LIMIT, 10)
 	: 1000;
-const DEBUG_SQL = process.env.DEBUG_SQL === "true";
+const DEBUG_SQL = process.env.MARIADB_DEBUG_SQL === "true";
+const LOG_LEVEL = process.env.MARIADB_LOG_LEVEL || "info"; // info, warn, error, debug
 
-function getConfigFromEnv() {
-	const host = schemasConfig.host.parse(process.env.MARIADB_HOST);
-	const port = schemasConfig.port.parse(
-		process.env.MARIADB_PORT
-			? Number.parseInt(process.env.MARIADB_PORT, 10)
-			: 3306,
-	);
-	const user = schemasConfig.user.parse(process.env.MARIADB_USER);
-	const password = schemasConfig.password.parse(process.env.MARIADB_PASSWORD);
-	const database = schemasConfig.database.parse(process.env.MARIADB_DATABASE);
-	const allow_insert = schemasConfig.allow_insert.parse(
-		process.env.MARIADB_ALLOW_INSERT === "true",
-	);
-	const allow_update = schemasConfig.allow_update.parse(
-		process.env.MARIADB_ALLOW_UPDATE === "true",
-	);
-	const allow_delete = schemasConfig.allow_delete.parse(
-		process.env.MARIADB_ALLOW_DELETE === "true",
-	);
+function log(level, message, ...args) {
+	const levels = ["error", "warn", "info", "debug"];
+	if (levels.indexOf(level) <= levels.indexOf(LOG_LEVEL)) {
+		console[level === "warn" ? "warn" : level === "error" ? "error" : "log"](message, ...args);
+	}
+}
+
+function parseArgsAndEnv() {
+	const cliArgs = process.argv.slice(2);
+	const envConfig = {
+		host: process.env.MARIADB_HOST,
+		port: process.env.MARIADB_PORT ?? "3306",
+		user: process.env.MARIADB_USER,
+		password: process.env.MARIADB_PASSWORD,
+		database: process.env.MARIADB_DATABASE,
+		allow_insert: process.env.MARIADB_ALLOW_INSERT === "true",
+		allow_update: process.env.MARIADB_ALLOW_UPDATE === "true",
+		allow_delete: process.env.MARIADB_ALLOW_DELETE === "true",
+	};
+
+	for (const arg of cliArgs) {
+		if (arg.startsWith("host=")) envConfig.host = arg.split("=")[1];
+		else if (arg.startsWith("port=")) envConfig.port = arg.split("=")[1];
+		else if (arg.startsWith("user=")) envConfig.user = arg.split("=")[1];
+		else if (arg.startsWith("password=")) envConfig.password = arg.split("=")[1];
+		else if (arg.startsWith("database=")) envConfig.database = arg.split("=")[1];
+	}
+
+	return envConfig;
+}
+
+function validateConfig(rawConfig) {
+	const host = schemasConfig.host.parse(rawConfig.host);
+	const port = schemasConfig.port.parse(Number.parseInt(rawConfig.port, 10));
+	const user = schemasConfig.user.parse(rawConfig.user);
+	const password = schemasConfig.password.parse(rawConfig.password);
+	const database = schemasConfig.database.parse(rawConfig.database);
+	const allow_insert = schemasConfig.allow_insert.parse(rawConfig.allow_insert);
+	const allow_update = schemasConfig.allow_update.parse(rawConfig.allow_update);
+	const allow_delete = schemasConfig.allow_delete.parse(rawConfig.allow_delete);
 
 	if (!host) throw new Error("MARIADB_HOST variável de ambiente é obrigatória");
 	if (!user) throw new Error("MARIADB_USER variável de ambiente é obrigatória");
-	if (!password)
-		throw new Error("MARIADB_PASSWORD variável de ambiente é obrigatória");
+	if (!password) throw new Error("MARIADB_PASSWORD variável de ambiente é obrigatória");
 
 	return {
 		host,
@@ -49,25 +70,58 @@ function getConfigFromEnv() {
 	};
 }
 
+function getConfigFromEnv() {
+	const rawConfig = parseArgsAndEnv();
+	const config = validateConfig(rawConfig);
+
+	if (!DEBUG_SQL) {
+		console.error('****************************');
+		console.error(`** Host: ${config.host}`);
+		console.error(`** Port: ${config.port}`);
+		console.error(`** User: ${config.user}`);
+		console.error(`** Database: ${config.database}`);
+		console.error('****************************');
+	}
+
+	return config;
+}
+
 const config = getConfigFromEnv();
 
-const pool = mariadb.createPool({
-	host: config.host,
-	port: config.port,
-	user: config.user,
-	password: config.password,
-	connectionLimit: 5,
-});
+function getPoolKey(cfg) {
+	const strHost = cfg.host.split(".").join("_");
+	return `${strHost}_${cfg.user}_${cfg.database}`;
+}
+
+const pools = {};
 
 async function executeQuery(sql, database) {
-	const connection = await pool.getConnection();
+	const key = getPoolKey(config);
+
+	if (!pools[key]) {
+		log("info", `[DB] Criando novo pool para ${key}`);
+		pools[key] = mariadb.createPool({
+			host: config.host,
+			port: config.port,
+			user: config.user,
+			password: config.password,
+			connectionLimit: 1,
+			acquireTimeout: DEFAULT_TIMEOUT,
+			connectTimeout: DEFAULT_TIMEOUT,
+			waitForConnections: true,
+			queueLimit: 0,
+			multipleStatements: true,
+		});
+	}
+
+	const connection = await pools[key].getConnection();
 	try {
-		if (DEBUG_SQL) console.log("[SQL] Nova conexão adquirida do pool");
+		if (DEBUG_SQL) log("debug", "[SQL] Nova conexão adquirida do pool");
 		if (database) {
-			if (DEBUG_SQL) console.log(`[SQL] USE \`${database}\``);
+			if (DEBUG_SQL) log("debug", `[SQL] USE \`${database}\``);
 			await connection.query(`USE \`${database}\``);
 		}
-		if (DEBUG_SQL) console.log(`[SQL] Executando: ${sql}`);
+		if (DEBUG_SQL) log("debug", `[SQL] Executando: ${sql}`);
 		const [rows, fields] = await connection.query({
 			metaAsArray: true,
 			dateStrings: true,
@@ -84,12 +138,23 @@ async function executeQuery(sql, database) {
 				: rows;
 		return { rows: limitedRows, fields };
 	} catch (error) {
-		console.error("[Erro] SQL com falha:", error);
+		log("error", "[Erro] SQL com falha:", error, "Query:", sql);
 		throw error;
 	} finally {
 		if (connection) {
 			connection.release();
-			if (DEBUG_SQL) console.log("[SQL] Conexão devolvida ao pool");
+			if (DEBUG_SQL) log("debug", "[SQL] Conexão devolvida ao pool");
+		}
+	}
+}
+
+async function closeAllPools() {
+	for (const key of Object.keys(pools)) {
+		try {
+			await pools[key].end();
+			log("info", `[DB] Pool fechado para ${key}`);
+		} catch (err) {
+			log("warn", `[DB] Erro ao fechar pool ${key}:`, err);
 		}
 	}
 }
@@ -99,7 +164,8 @@ export {
 	DEFAULT_ROW_LIMIT,
 	DEBUG_SQL,
 	config,
-	pool,
+	pools,
 	getConfigFromEnv,
 	executeQuery,
+	closeAllPools,
 };

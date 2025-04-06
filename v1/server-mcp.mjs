@@ -1,28 +1,31 @@
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import {
+  McpError, ErrorCode,
   CallToolRequestSchema,
+  ListResourcesRequestSchema,
   ListToolsRequestSchema,
-  ErrorCode,
-  McpError,
+  ReadResourceRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
-
 import { schemas } from "./schemas.js";
-import { config, executeQuery } from "./db.js";
+import { config, executeQuery, closeAllPools } from "./db.js";
 
 const TOOL_DEFINITIONS = [
   {
     name: "show_databases",
-    description: "Retorna uma lista com os nomes de todos os bancos de dados acessíveis no servidor MariaDB.",
+    description:
+      "Retorna uma lista com os nomes de todos os bancos de dados acessíveis no servidor MariaDB",
     inputSchema: {
       type: "object",
-      properties: {},
+      properties: {
+      },
       required: [],
     },
   },
   {
     name: "show_tables",
-    description: "Retorna uma lista com os nomes e tipos de todas as tabelas do banco de dados especificado. Se nenhum banco de dados for informado, utiliza o banco de dados padrão.",
+    description:
+      "Retorna uma lista com os nomes e tipos de todas as tabelas do banco de dados especificado. Se nenhum banco de dados for informado, utiliza o banco de dados padrão.",
     inputSchema: {
       type: "object",
       id: "urn:jsonschema:database",
@@ -38,7 +41,8 @@ const TOOL_DEFINITIONS = [
   },
   {
     name: "describe_table",
-    description: "Retorna a estrutura detalhada (colunas, tipos, nulabilidade, etc.) de uma tabela específica em um banco de dados. O banco de dados pode ser especificado ou será usado o padrão.",
+    description:
+      "Retorna a estrutura detalhada (colunas, tipos, nulabilidade, etc.) de uma tabela específica em um banco de dados. O banco de dados pode ser especificado ou será usado o padrão.",
     inputSchema: {
       type: "object",
       properties: {
@@ -57,7 +61,8 @@ const TOOL_DEFINITIONS = [
   },
   {
     name: "run_query",
-    description: "Executa uma consulta SQL no banco de dados especificado ou padrão, retornando o resultado da consulta.",
+    description:
+      "Executa uma consulta SQL no banco de dados especificado ou padrão, retornando o resultado da consulta.",
     inputSchema: {
       type: "object",
       properties: {
@@ -86,7 +91,7 @@ const server = new Server(
       resources: {},
       tools: {},
     },
-  }
+  },
 );
 
 async function show_databases() {
@@ -98,6 +103,7 @@ async function show_databases() {
         text: JSON.stringify(rows, null, 2),
       },
     ],
+    isError: false,
   };
 }
 
@@ -107,7 +113,7 @@ async function show_tables(args) {
   if (!database) {
     throw new McpError(
       ErrorCode.InvalidParams,
-      "O nome do banco de dados é obrigatório"
+      "O nome do banco de dados é obrigatório",
     );
   }
   const { rows } = await executeQuery("SHOW FULL TABLES", database);
@@ -118,6 +124,7 @@ async function show_tables(args) {
         text: JSON.stringify(rows, null, 2),
       },
     ],
+    isError: false,
   };
 }
 
@@ -128,13 +135,13 @@ async function describe_table(args) {
   if (!database) {
     throw new McpError(
       ErrorCode.InvalidParams,
-      "O nome do banco de dados é obrigatório"
+      "O nome do banco de dados é obrigatório",
     );
   }
   if (!table) {
     throw new McpError(
       ErrorCode.InvalidParams,
-      "O nome da tabela é obrigatório"
+      "O nome da tabela é obrigatório",
     );
   }
   const { rows } = await executeQuery(`DESCRIBE \`${table}\``, database);
@@ -145,6 +152,7 @@ async function describe_table(args) {
         text: JSON.stringify(rows, null, 2),
       },
     ],
+    isError: false,
   };
 }
 
@@ -155,7 +163,7 @@ async function run_query(args) {
   if (!database) {
     throw new McpError(
       ErrorCode.InvalidParams,
-      "O nome do banco de dados é obrigatório"
+      "O nome do banco de dados é obrigatório",
     );
   }
   if (!query) {
@@ -169,6 +177,7 @@ async function run_query(args) {
         text: JSON.stringify(rows, null, 2),
       },
     ],
+    isError: false,
   };
 }
 
@@ -220,7 +229,7 @@ function isAllowedQuery(sql) {
   ];
 
   const startsWithAllowed = ALLOWED_COMMANDS.some(
-    (cmd) => normalizedQuery.startsWith(`${cmd} `) || normalizedQuery === cmd
+    (cmd) => normalizedQuery.startsWith(`${cmd} `) || normalizedQuery === cmd,
   );
 
   const containsDisallowed = DISALLOWED_COMMANDS.some((cmd) => {
@@ -234,11 +243,12 @@ function isAllowedQuery(sql) {
   const hasMultipleStatements =
     normalizedQuery.includes(";") && !normalizedQuery.endsWith(";");
 
-  const allowed = startsWithAllowed && !containsDisallowed && !hasMultipleStatements;
+  const allowed =
+    startsWithAllowed && !containsDisallowed && !hasMultipleStatements;
 
   if (!allowed) {
     console.error(
-      "[SQL] SQL contém comandos não permitidos ou não é permitida pela configuração atual!"
+      "[SQL] SQL contém comandos não permitidos ou não é permitida pela configuração atual!",
     );
   }
   return allowed;
@@ -263,21 +273,20 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         throw new McpError(
           ErrorCode.MethodNotFound,
           `[Error] Ferramenta desconhecida: ${request.params.name}`,
-          request.params.arguments
+          request.params.arguments,
         );
     }
   } catch (error) {
     console.error(
       `Erro ao executar a ferramenta ${request.params.name}:`,
-      error
+      error,
     );
     return {
       content: [
         {
           type: "text",
-          text: `Error: ${
-            error instanceof Error ? error.message : String(error)
-          }`,
+          text: `Error: ${error instanceof Error ? error.message : String(error)
+            }`,
         },
       ],
       isError: true,
@@ -298,6 +307,7 @@ async function main() {
 
 process.on("SIGINT", async () => {
   console.log("[Desligando] Fechando conexão com o servidor de banco de dados");
+  await closeAllPools();
   process.exit(0);
 });
 

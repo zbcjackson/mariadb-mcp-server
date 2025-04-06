@@ -45,7 +45,9 @@ The server requires the following environment variables:
 - MARIADB_DATABASE: Default database name (optional)
 - MARIADB_ALLOW_INSERT: false
 - MARIADB_ALLOW_UPDATE: false
-- MARIADB_ALLOW_DELETE: false        
+- MARIADB_ALLOW_DELETE: false
+- MARIADB_TIMEOUT_MS: 10000
+- MARIADB_ROW_LIMIT: 1000
 
 
 ### 3. Add to MCP settings
@@ -66,7 +68,9 @@ If you installed via npm (Option 1):
         "MARIADB_DATABASE": "your-database",
         "MARIADB_ALLOW_INSERT": "false",
         "MARIADB_ALLOW_UPDATE": "false",
-        "MARIADB_ALLOW_DELETE": "false"        
+        "MARIADB_ALLOW_DELETE": "false",
+        "MARIADB_TIMEOUT_MS": "10000",
+        "MARIADB_ROW_LIMIT": "1000",
       },
       "disabled": false,
       "autoApprove": []
@@ -90,7 +94,9 @@ If you built from source (Option 2):
         "MARIADB_DATABASE": "your-default-database",
         "MARIADB_ALLOW_INSERT": "false",
         "MARIADB_ALLOW_UPDATE": "false",
-        "MARIADB_ALLOW_DELETE": "false"        
+        "MARIADB_ALLOW_DELETE": "false",
+        "MARIADB_TIMEOUT_MS": "10000",
+        "MARIADB_ROW_LIMIT": "1000",
       },
       "disabled": false,
       "autoApprove": []
@@ -186,6 +192,8 @@ export MARIADB_PASSWORD=your_password
 export MARIADB_ALLOW_INSERT: false
 export MARIADB_ALLOW_UPDATE: false
 export MARIADB_ALLOW_DELETE: false
+export MARIADB_TIMEOUT_MS=10000
+export MARIADB_ROW_LIMIT=1000
 
 
 # Run the setup script
@@ -196,7 +204,20 @@ npm run test:setup
 This script tests each of the MCP tools against the test database:
 
 ```bash
+####
 # Set your MariaDB / MySQL credentials as environment variables
+MARIADB_HOST=localhost
+MARIADB_PORT=3306
+MARIADB_USER=your_username
+MARIADB_PASSWORD=your_password
+MARIADB_DATABASE=mcp_test_db
+MARIADB_ALLOW_INSERT=false
+MARIADB_ALLOW_UPDATE=false
+MARIADB_ALLOW_DELETE=false
+MARIADB_TIMEOUT_MS=10000
+MARIADB_ROW_LIMIT=1000
+MARIADB_DEBUG_SQL=true
+####
 export MARIADB_HOST=localhost
 export MARIADB_PORT=3306
 export MARIADB_USER=your_username
@@ -205,6 +226,8 @@ export MARIADB_DATABASE=mcp_test_db
 export MARIADB_ALLOW_INSERT: false
 export MARIADB_ALLOW_UPDATE: false
 export MARIADB_ALLOW_DELETE: false
+export MARIADB_TIMEOUT_MS=10000
+export MARIADB_ROW_LIMIT=1000
 
 
 # Run the tools test script
@@ -223,6 +246,8 @@ export MARIADB_PASSWORD=your_password
 export MARIADB_ALLOW_INSERT: false
 export MARIADB_ALLOW_UPDATE: false
 export MARIADB_ALLOW_DELETE: false
+export MARIADB_TIMEOUT_MS=10000
+export MARIADB_ROW_LIMIT=1000
 
 # Run all tests
 npm test

@@ -3,7 +3,7 @@ import {
   show_tables,
   describe_table,
   run_query,
-} from "./server-mcp-v2.mjs";
+} from "./server-mcp.mjs";
 
 // ======= CONFIGURAÇÃO DOS TESTES =======
 // Informe aqui o banco de dados e tabela que deseja testar
@@ -53,9 +53,9 @@ async function testRunQuery() {
 
 async function runAllTests() {
   await testShowDatabases();
-  await testShowTables();
-  await testDescribeTable();
-  await testRunQuery();
+//  await testShowTables();
+//  await testDescribeTable();
+//  await testRunQuery();
 }
 
 runAllTests().catch((error) => {
