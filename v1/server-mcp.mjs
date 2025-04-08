@@ -3,9 +3,9 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import {
   McpError, ErrorCode,
   CallToolRequestSchema,
-  ListResourcesRequestSchema,
+//  ListResourcesRequestSchema,
   ListToolsRequestSchema,
-  ReadResourceRequestSchema,
+//  ReadResourceRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
 import { schemas } from "./schemas.js";
 import { config, executeQuery, closeAllPools } from "./db.js";
@@ -113,7 +113,7 @@ async function show_tables(args) {
   if (!database) {
     throw new McpError(
       ErrorCode.InvalidParams,
-      "O nome do banco de dados é obrigatório",
+      `O nome do banco de dados é obrigatório: ${database}`,
     );
   }
   const { rows } = await executeQuery("SHOW FULL TABLES", database);

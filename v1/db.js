@@ -16,7 +16,10 @@ const LOG_LEVEL = process.env.MARIADB_LOG_LEVEL || "info"; // info, warn, error,
 function log(level, message, ...args) {
 	const levels = ["error", "warn", "info", "debug"];
 	if (levels.indexOf(level) <= levels.indexOf(LOG_LEVEL)) {
-		console[level === "warn" ? "warn" : level === "error" ? "error" : "log"](message, ...args);
+		console[level === "warn" ? "warn" : (level === "error" || level === 'debug') ? "error" : "log"](
+			message,
+			...args,
+		);
 	}
 }
 
@@ -32,13 +35,14 @@ function parseArgsAndEnv() {
 		allow_update: process.env.MARIADB_ALLOW_UPDATE === "true",
 		allow_delete: process.env.MARIADB_ALLOW_DELETE === "true",
 	};
-
 	for (const arg of cliArgs) {
 		if (arg.startsWith("host=")) envConfig.host = arg.split("=")[1];
 		else if (arg.startsWith("port=")) envConfig.port = arg.split("=")[1];
 		else if (arg.startsWith("user=")) envConfig.user = arg.split("=")[1];
-		else if (arg.startsWith("password=")) envConfig.password = arg.split("=")[1];
-		else if (arg.startsWith("database=")) envConfig.database = arg.split("=")[1];
+		else if (arg.startsWith("password="))
+			envConfig.password = arg.split("=")[1];
+		else if (arg.startsWith("database="))
+			envConfig.database = arg.split("=")[1];
 	}
 
 	return envConfig;
@@ -56,7 +60,8 @@ function validateConfig(rawConfig) {
 
 	if (!host) throw new Error("MARIADB_HOST variável de ambiente é obrigatória");
 	if (!user) throw new Error("MARIADB_USER variável de ambiente é obrigatória");
-	if (!password) throw new Error("MARIADB_PASSWORD variável de ambiente é obrigatória");
+	if (!password)
+		throw new Error("MARIADB_PASSWORD variável de ambiente é obrigatória");
 
 	return {
 		host,
@@ -72,28 +77,16 @@ function validateConfig(rawConfig) {
 
 function getConfigFromEnv() {
 	const rawConfig = parseArgsAndEnv();
-	const config = validateConfig(rawConfig);
-
-	if (!DEBUG_SQL) {
-		console.error('****************************');
-		console.error(`** Host: ${config.host}`);
-		console.error(`** Port: ${config.port}`);
-		console.error(`** User: ${config.user}`);
-		console.error(`** Database: ${config.database}`);
-		console.error('****************************');
-	}
-
-	return config;
+	return validateConfig(rawConfig);
 }
-
-const config = getConfigFromEnv();
 
 function getPoolKey(cfg) {
 	const strHost = cfg.host.split(".").join("_");
 	return `${strHost}_${cfg.user}_${cfg.database}`;
 }
 
-const pools = {};
+const config = getConfigFromEnv();
+const pools = [];
 
 async function executeQuery(sql, database) {
 	const key = getPoolKey(config);
@@ -106,15 +99,26 @@ async function executeQuery(sql, database) {
 			user: config.user,
 			password: config.password,
 			connectionLimit: 1,
-			acquireTimeout: DEFAULT_TIMEOUT,
 			connectTimeout: DEFAULT_TIMEOUT,
-			waitForConnections: true,
-			queueLimit: 0,
-			multipleStatements: true,
 		});
+		if (DEBUG_SQL) {
+			log("debug", `[DB] Criando novo pool para ${key} : ${new Date().toLocaleString("pt-BR")}`);
+			log('debug', "****************************");
+			log('debug', `** Host: ${config.host}`);
+			log('debug', `** Port: ${config.port}`);
+			log('debug', `** User: ${config.user}`);
+			log('debug', `** Database: ${config.database}`);
+			log('debug', "****************************");
+		}
+	}
+	if (!pools[key]) {
+		throw new Error(`Não foi possível criar o pool para ${key}`);
+	}
+	const connection = await pools[key].getConnection();
+	if (DEBUG_SQL) {
+		log("debug", `[DB] conexão para ${key} Id: ${connection.threadId}`);
 	}
 
-	const connection = await pools[key].getConnection();
 	try {
 		if (DEBUG_SQL) log("debug", "[SQL] Nova conexão adquirida do pool");
 		if (database) {
