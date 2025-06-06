@@ -208,7 +208,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           content: [
             {
               type: "text",
-              text: JSON.stringify(rows, null, 2),
+              text: JSON.stringify(rows, (key, value) => typeof value === 'bigint' ? Number(value) : value, 2),
             },
           ],
         };
