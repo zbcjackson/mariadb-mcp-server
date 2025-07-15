@@ -34,6 +34,7 @@ export function createConnectionPool(): mariadb.Pool {
       database: config.database,
       connectionLimit: 2,
       connectTimeout: DEFAULT_TIMEOUT,
+      multipleStatements: true,
     });
   } catch (error) {
     console.error("[Error] Failed to create connection pool:", error);
