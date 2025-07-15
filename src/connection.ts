@@ -4,7 +4,7 @@
 
 import mariadb from "mariadb";
 import { MariaDBConfig } from "./types.js";
-import { isAlloowedQuery } from "./validators.js";
+import { isAllowedQuery } from "./validators.js";
 
 // Default connection timeout in milliseconds
 const DEFAULT_TIMEOUT = 10000;
@@ -70,7 +70,7 @@ export async function executeQuery(
       console.error(`[Query] Using database: ${database}`);
       await connection.query(`USE \`${database}\``);
     }
-    if (!isAlloowedQuery(sql)) {
+    if (!isAllowedQuery(sql)) {
       throw new Error("Query not allowed");
     }
     // Execute query with timeout
